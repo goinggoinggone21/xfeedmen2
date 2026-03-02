@@ -1,0 +1,111 @@
+name: Orchestrated Posts
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  #"0 0 1 1 *" # #"0 13,23 * * *" #"0 0 1 1 *"
+  workflow_dispatch:
+
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+jobs:
+  scrape-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3 #actions/setup-python@v2.0.0
+        with:
+          python-version: '3.10'
+      #- name: Install Linux requirements
+      #  run: |
+      #    sudo apt install ffmpeg
+      #    sudo apt update
+      #    sudo apt install tesseract-ocr
+      #    sudo apt install libtesseract-dev
+      - name: Install Python requirements
+        run: pip install python-twitter-v2 praw moviepy==1.0.3 curl-cffi yt_dlp #-U redgifs #-r requirements.txt
+      - name: Install Tor, Run Tor, and wait
+        run: |
+          sudo apt-get install -y tor
+          # Set a clear config
+          # 1. Update the config to include the Control Port (9051)
+          # 2. Disable cookie auth so Python can talk to it
+          echo "SocksPort 127.0.0.1:9050" | sudo tee /etc/tor/torrc
+          echo "ControlPort 127.0.0.1:9051" | sudo tee -a /etc/tor/torrc
+          echo "CookieAuthentication 0" | sudo tee -a /etc/tor/torrc
+      
+                
+          sudo service tor restart
+          
+          echo "Waiting for Tor to bootstrap..."
+          # Try up to 15 times with a 5-second sleep
+          for i in {1..15}; do
+            # Use socks5h (the 'h' is critical)
+            if curl -s --socks5-hostname 127.0.0.1:9050 https://api.ipify.org > /dev/null; then
+              echo "Tor is ACTIVE. Identity:"
+              curl -s --socks5-hostname 127.0.0.1:9050 https://api.ipify.org
+              exit 0
+            fi
+            echo "Attempt $i: Tor not ready. Bootstrapping..."
+            sleep 5
+          done
+          echo "Tor failed to bootstrap in time."
+          exit 1
+      - name: Run SR
+        run: python main_feed_sr.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_SR}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_SR}} ${{secrets.TWITTER_CONSUMER_KEY_SR}} ${{secrets.TWITTER_CONSUMER_SECRET_SR}} 
+      #- name: Run AS
+      #  run: python main_feed_as.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_AS}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_AS}} ${{secrets.TWITTER_CONSUMER_KEY_AS}} ${{secrets.TWITTER_CONSUMER_SECRET_AS}} 
+      - name: Run RL
+        run: python main_feed_rl.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_RL}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_RL}} ${{secrets.TWITTER_CONSUMER_KEY_RL}} ${{secrets.TWITTER_CONSUMER_SECRET_RL}} 
+      - name: Run LA
+        run: python main_feed_la.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_LA}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_LA}} ${{secrets.TWITTER_CONSUMER_KEY_LA}} ${{secrets.TWITTER_CONSUMER_SECRET_LA}} 
+      - name: Run AD
+        run: python main_feed_ad.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_AD}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_AD}} ${{secrets.TWITTER_CONSUMER_KEY_AD}} ${{secrets.TWITTER_CONSUMER_SECRET_AD}}  
+      - name: Run MK
+        run: python main_feed_mk.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_MK}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_MK}} ${{secrets.TWITTER_CONSUMER_KEY_MK}} ${{secrets.TWITTER_CONSUMER_SECRET_MK}} 
+      - name: Run AW
+        run: python main_feed_aw.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_AW2}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_AW2}} ${{secrets.TWITTER_CONSUMER_KEY_AW2}} ${{secrets.TWITTER_CONSUMER_SECRET_AW2}}
+      - name: Run RR
+        run: python main_feed_rr.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_RR}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_RR}} ${{secrets.TWITTER_CONSUMER_KEY_RR}} ${{secrets.TWITTER_CONSUMER_SECRET_RR}}  
+      - name: Run KR
+        run: python main_feed_kr.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_KR}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_KR}} ${{secrets.TWITTER_CONSUMER_KEY_KR}} ${{secrets.TWITTER_CONSUMER_SECRET_KR}}  
+      - name: Run AVA
+        run: python main_feed_ava.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_AVA}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_AVA}} ${{secrets.TWITTER_CONSUMER_KEY_AVA}} ${{secrets.TWITTER_CONSUMER_SECRET_AVA}}  
+      - name: Run MA
+        run: python main_feed_ma.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_MA}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_MA}} ${{secrets.TWITTER_CONSUMER_KEY_MA}} ${{secrets.TWITTER_CONSUMER_SECRET_MA}} 
+      #- name: Run GC
+      #  run: python main_feed_gc.py ${{secrets.REDDIT_CLIENT_ID}} ${{secrets.REDDIT_CLIENT_SECRET}} ${{secrets.REDDIT_PASSWORD}} ${{secrets.REDDIT_USER_AGENT}} ${{secrets.REDDIT_USER_NAME}} ${{secrets.TWITTER_ACCESS_TOKEN_GC}} ${{secrets.TWITTER_ACCESS_TOKEN_SECRET_GC}} ${{secrets.TWITTER_CONSUMER_KEY_GC}} ${{secrets.TWITTER_CONSUMER_SECRET_GC}} 
+      
+
+
+      #- name: Set env vars
+      #  run: |
+      #    echo "DATE=$(python -c 'import datetime as dt; print(dt.datetime.now().date())')" >> $GITHUB_ENV
+      - name: Push to repository
+        run: |
+          git config --global user.name "goinggoinggone21"
+          git config --global user.email ${{secrets.GIT_USER_EMAIL}}
+          now=$(date)
+          git add -A
+          git commit -m "Auto Push on $now"
+          git push
+
+      - name: Push to repository and Reset History
+        run: |
+          git config --global user.name "goinggoinggone21"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+          now=$(date)
+          
+          # Create a new branch with no history
+          git checkout --orphan temp_branch
+          
+          # Add all current files (the code state you want to keep)
+          git add -A
+          git commit -m "Auto Update: $(date)"
+          
+          # Force push this single-commit branch to replace 'main'
+          # This deletes all previous history on the remote
+          git push origin temp_branch:main --force
